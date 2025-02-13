@@ -1,0 +1,29 @@
+version: '3'
+
+services:
+  postgres:
+    image: 'postgres:14.2'
+    ports:
+      - "5432:5432"
+    restart: always
+    deploy:
+      mode: replicated
+      replicas: 1
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: merch-shop
+    volumes:
+      - ./scripts/db/dev:/docker-entrypoint-initdb.d
+    
+  postgres_test:
+    image: 'postgres:14.2'
+    ports:
+      - "5433:5432" 
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: merch-shop_test 
+    volumes:
+      - ./scripts/db/dev:/docker-entrypoint-initdb.d
