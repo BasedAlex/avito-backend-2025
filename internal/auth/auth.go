@@ -28,7 +28,7 @@ func VerifyToken(tokenString string) error {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		return secretKey, nil
 	})
-	
+
 	if err != nil {
 		return err
 	}
@@ -44,7 +44,7 @@ func ExtractUsername(tokenString string) (string, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		return secretKey, nil
 	})
-	
+
 	if err != nil {
 		return "", err
 	}

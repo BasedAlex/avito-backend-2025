@@ -15,27 +15,32 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
 	cfg, err := config.Init("./config.dev.yaml")
+
 	if err != nil {
-		log.Fatalln("error loading config:", err)
+		log.Error("error loading config ", err)
+		return
 	}
 
 	database, err := db.NewPostgres(ctx, cfg.Database.DSN)
 	if err != nil {
-		log.Fatalln(err)
+		log.Error(err)
+		return
 	}
 
 	server := service.NewService(database)
 	r := chi.NewRouter()
 	r.Use(middleware.Authentication)
 	api.HandlerFromMux(server, r)
-	
 
 	log.Println("Server listening on port 8080")
-    http.ListenAndServe(":8080", r)
+	err = http.ListenAndServe(":8080", r)
+	if err != nil {
+		log.Error(err)
+		return
+	}
 }

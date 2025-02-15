@@ -3,20 +3,8 @@ server:
   port: 8080
 
 database:
-  user: "postgres"
-  password: password
-  host: "localhost"
-  port: 5433
-  name: "merch-shop"
-  dsn: user=postgres password=password host=localhost port=5433 dbname=merch-shop sslmode=disable pool_max_conns=10
+  dsn: user=postgres password=password host=postgres port=5432 dbname=merch-shop sslmode=disable pool_max_conns=10
 
 log:
   level: "debug"
   output: "logs/app.log"
-
-rate_limit:
-  requests_per_second: 10
-  burst: 20
-
-
-# goose postgres "postgres://postgres:password@localhost:5433/merch-shop?sslmode=disable" up

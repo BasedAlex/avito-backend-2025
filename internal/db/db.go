@@ -9,10 +9,12 @@ import (
 	api "github.com/basedalex/merch-shop/internal/swagger"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/pressly/goose/v3"
 	"golang.org/x/crypto/bcrypt"
 )
 
-//go:generate mockgen -source=db.go -destination=../service/mocks/mock_db.go -package=mocks
+//go:generate mockgen -source=db.go -destination=../mocks/mock_db.go -package=mocks
 type Repository interface {
 	GetEmployeeInfo(ctx context.Context, employeeName string) (*InfoResponse, error)
 	TransferCoins(ctx context.Context, senderName, receiverName string, amount int) error
@@ -41,7 +43,31 @@ func NewPostgres(ctx context.Context, conn string) (*Postgres, error) {
 		return nil, fmt.Errorf("error pinging the database: %w", err)
 	}
 
+	if err := runMigrations(db); err != nil {
+		return nil, fmt.Errorf("error running migrations: %w", err)
+	}
+
 	return &Postgres{db: db}, nil
+}
+
+func runMigrations(db *pgxpool.Pool) error {
+	sqlDB := stdlib.OpenDBFromPool(db)
+
+	if err := goose.SetDialect("postgres"); err != nil {
+		return fmt.Errorf("failed to set dialect: %w", err)
+	}
+
+	migrationsDir := "./migrations"
+
+	if err := goose.Up(sqlDB, migrationsDir); err != nil {
+		return fmt.Errorf("failed to run migrations: %w", err)
+	}
+
+	if err := sqlDB.Close(); err != nil {
+		return fmt.Errorf("failed to close SQL DB: %w", err)
+	}
+
+	return nil
 }
 
 func (p *Postgres) GetEmployeeInfo(ctx context.Context, employeeName string) (*InfoResponse, error) {
@@ -56,12 +82,12 @@ func (p *Postgres) GetEmployeeInfo(ctx context.Context, employeeName string) (*I
 	for rows.Next() {
 		var productName string
 		var quantity int
-		
+
 		err := rows.Scan(&productName, &quantity)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching employee info: %w", err)
 		}
-		
+
 		info.Inventory = append(info.Inventory, Item{Type: productName, Quantity: quantity})
 	}
 	query = `SELECT balance FROM employees WHERE username = $1`
@@ -85,11 +111,11 @@ func (p *Postgres) GetEmployeeInfo(ctx context.Context, employeeName string) (*I
 		if err != nil {
 			return nil, fmt.Errorf("error fetching employee info: %w", err)
 		}
-		
+
 		info.CoinHistory.Received = append(info.CoinHistory.Received, Transaction{
-			FromUser: sender, 
-			ToUser: receiver, 
-			Amount: amount, 
+			FromUser:        sender,
+			ToUser:          receiver,
+			Amount:          amount,
 			TransactionDate: transactionDate,
 		})
 	}
@@ -104,7 +130,6 @@ func (p *Postgres) TransferCoins(ctx context.Context, sender, receiver string, a
 	if sender == receiver {
 		return fmt.Errorf("sender and receiver cannot be the same")
 	}
-
 
 	if sender > receiver {
 		sender, receiver = receiver, sender
@@ -122,7 +147,7 @@ func (p *Postgres) TransferCoins(ctx context.Context, sender, receiver string, a
 	var fromBalance int
 	err = tx.QueryRow(ctx, `SELECT balance FROM employees WHERE username=$1 FOR UPDATE;`, sender).Scan(&fromBalance)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows){
+		if errors.Is(err, pgx.ErrNoRows) {
 			return fmt.Errorf("sender not found")
 		}
 		return err
@@ -131,18 +156,17 @@ func (p *Postgres) TransferCoins(ctx context.Context, sender, receiver string, a
 	var toBalance int
 	err = tx.QueryRow(ctx, `SELECT balance FROM employees WHERE username=$1 FOR UPDATE`, receiver).Scan(&toBalance)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows){
+		if errors.Is(err, pgx.ErrNoRows) {
 			return fmt.Errorf("sender not found")
 		}
 		return err
 	}
-	
+
 	fromBalance -= amount
 	toBalance += amount
 	if fromBalance < 0 || toBalance < 0 {
 		return fmt.Errorf("not enough money on balance")
 	}
-
 
 	query := "UPDATE employees SET balance=$1 WHERE username=$2"
 
@@ -156,7 +180,6 @@ func (p *Postgres) TransferCoins(ctx context.Context, sender, receiver string, a
 		return err
 	}
 
-	
 	if amount < 0 {
 		sender, receiver = receiver, sender
 		amount = -amount
@@ -171,7 +194,6 @@ func (p *Postgres) TransferCoins(ctx context.Context, sender, receiver string, a
 	err = tx.Commit(ctx)
 	return err
 }
-
 
 func (p *Postgres) BuyItem(ctx context.Context, employeeName, item string) error {
 	tx, err := p.db.Begin(ctx)
@@ -201,7 +223,6 @@ func (p *Postgres) BuyItem(ctx context.Context, employeeName, item string) error
 		return fmt.Errorf("error deducting coins for purchase: %w", err)
 	}
 
-
 	query := `INSERT INTO employee_purchases (employee_username, product_name) VALUES ($1, $2)`
 	_, err = tx.Exec(ctx, query, employeeName, item)
 	if err != nil {
@@ -223,7 +244,7 @@ func (p *Postgres) Authenticate(ctx context.Context, authRequest api.AuthRequest
 	defer func() {
 		_ = tx.Rollback(ctx)
 	}()
-	
+
 	var pass string
 	err = tx.QueryRow(ctx, `SELECT pass FROM employees WHERE username = $1;`, authRequest.Username).Scan(&pass)
 	if err != nil {
@@ -252,7 +273,7 @@ func (p *Postgres) CreateEmployee(ctx context.Context, authRequest api.AuthReque
 	}()
 
 	var username string
-	err = tx.QueryRow(ctx, `INSERT INTO employees (username, pass) VALUES ($1, $2) RETURNING username;`, 
+	err = tx.QueryRow(ctx, `INSERT INTO employees (username, pass) VALUES ($1, $2) RETURNING username;`,
 		authRequest.Username, authRequest.Password).Scan(&username)
 	if err != nil {
 		return fmt.Errorf("could not create new user: %w", err)
@@ -264,28 +285,3 @@ func (p *Postgres) CreateEmployee(ctx context.Context, authRequest api.AuthReque
 
 	return nil
 }
-
-// func (p *Postgres) GetEmployeeID(ctx context.Context, username string) (int, error) {
-// 	tx, err := p.db.Begin(ctx)
-// 	if err != nil {
-// 		return 0, fmt.Errorf("error starting transaction: %w", err)
-// 	}
-
-// 	defer func() {
-
-// 		_ = tx.Rollback(ctx)
-
-// 	}()
-
-// 	var ID int
-// 	err = tx.QueryRow(ctx, `SELECT id FROM employees WHERE username = $1;`, username).Scan(&ID);
-// 	if err != nil {
-// 		if err == pgx.ErrNoRows {
-// 			return 0, fmt.Errorf("user with username %s not found", username)
-// 		}
-// 		return 0, fmt.Errorf("could not get user_id: %w", err)
-// 	}
-
-
-// 	return ID, nil
-// }

@@ -18,7 +18,7 @@ type Config struct {
 		Host     string `yaml:"host"`
 		Port     int    `yaml:"port"`
 		Name     string `yaml:"name"`
-		DSN		 string `yaml:"dsn"`
+		DSN      string `yaml:"dsn"`
 	} `yaml:"database"`
 
 	Log struct {

@@ -1,10 +1,28 @@
 version: '3'
 
 services:
+  app:
+    container_name: go-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080" 
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+      - DB_NAME=merch-shop
+    depends_on:
+      - postgres
+    networks:
+      - backend
+
   postgres:
     image: 'postgres:14.2'
     ports:
-      - "5433:5432"
+      - "5432:5432"
     restart: always
     deploy:
       mode: replicated
@@ -13,16 +31,25 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
       POSTGRES_DB: merch-shop
+    networks:
+      - backend
 
     
   postgres_test:
     image: 'postgres:14.2'
     ports:
-      - "5433:5432" 
+      - "5433:5433"
     restart: always
+    deploy:
+      mode: replicated
+      replicas: 1
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
-      POSTGRES_DB: merch-shop_test 
-    volumes:
-      - ./scripts/db/dev:/docker-entrypoint-initdb.d
+      POSTGRES_DB: merch-shop
+    networks:
+      - backend
+
+networks:
+  backend:
+    driver: bridge
