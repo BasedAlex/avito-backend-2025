@@ -25,9 +25,12 @@ func CreateToken(username string) (string, error) {
 }
 
 func VerifyToken(tokenString string) error {
+	fmt.Println(tokenString)
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		return secretKey, nil
 	})
+
+	
 
 	if err != nil {
 		return err
@@ -41,10 +44,11 @@ func VerifyToken(tokenString string) error {
 }
 
 func ExtractUsername(tokenString string) (string, error) {
+	fmt.Println("token 2 ", tokenString)
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		return secretKey, nil
 	})
-
+	
 	if err != nil {
 		return "", err
 	}

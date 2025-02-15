@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
+	"golang.org/x/crypto/bcrypt"
 
-	"github.com/basedalex/merch-shop/internal/api"
 	"github.com/basedalex/merch-shop/internal/auth"
 	"github.com/basedalex/merch-shop/internal/db"
-	"github.com/go-chi/chi/v5"
+	api "github.com/basedalex/merch-shop/internal/swagger"
 )
 
 type MyService struct {
@@ -38,6 +39,7 @@ func (s *MyService) PostApiAuth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+
 	// if user exists and password is right give back token
 	exists, err := s.db.Authenticate(r.Context(), authRequest); 
 	if err != nil {
@@ -48,9 +50,11 @@ func (s *MyService) PostApiAuth(w http.ResponseWriter, r *http.Request) {
 
 		return 
 	}
+	log.Info("exists", exists)
 	
 	if exists {
 		token, err := auth.CreateToken(authRequest.Username)
+		log.Info("Generated token ", token)
 		if err != nil {
 			writeErrResponse(w, err, http.StatusInternalServerError)
 		
@@ -63,6 +67,16 @@ func (s *MyService) PostApiAuth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// if user doesn't exist create one
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(authRequest.Password), bcrypt.DefaultCost)
+    if err != nil {
+		writeErrResponse(w, err, http.StatusInternalServerError)
+
+		return
+    }
+	authRequest.Password = string(hashedPassword)
+	fmt.Println(authRequest.Password)
+
 	if err = s.db.CreateEmployee(r.Context(), authRequest); err != nil {
 		writeErrResponse(w, fmt.Errorf("could not create new employee %w", err), http.StatusInternalServerError)
 	
@@ -82,8 +96,10 @@ func (s *MyService) PostApiAuth(w http.ResponseWriter, r *http.Request) {
 
 // (GET /api/buy/{item})
 func (s *MyService) GetApiBuyItem(w http.ResponseWriter, r *http.Request, item string) {
-	tokenString := chi.URLParam(r, "Authorization")
-	username, err := auth.ExtractUsername(tokenString)
+	fmt.Println("buying item")
+	tokenString := r.Header.Get("Authorization")
+	token := strings.TrimPrefix(tokenString, "Bearer ")
+	username, err := auth.ExtractUsername(token)
 	if err != nil {
 		writeErrResponse(w, err, http.StatusBadRequest)
 	
@@ -109,8 +125,10 @@ func (s *MyService) GetApiBuyItem(w http.ResponseWriter, r *http.Request, item s
 
 // (GET /api/info)
 func (s *MyService) GetApiInfo(w http.ResponseWriter, r *http.Request) {
-	tokenString := chi.URLParam(r, "Authorization")
-	username, err := auth.ExtractUsername(tokenString)
+	tokenString := r.Header.Get("Authorization")
+	token := strings.TrimPrefix(tokenString, "Bearer ")
+
+	username, err := auth.ExtractUsername(token)
 	if err != nil {
 		writeErrResponse(w, err, http.StatusBadRequest)
 		return
@@ -153,8 +171,12 @@ func (s *MyService) PostApiSendCoin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tokenString := chi.URLParam(r, "Authorization")
-	username, err := auth.ExtractUsername(tokenString)
+	tokenString := r.Header.Get("Authorization")
+	
+	token := strings.TrimPrefix(tokenString, "Bearer ")
+
+	
+	username, err := auth.ExtractUsername(token)
 	if err != nil {
 		writeErrResponse(w, err, http.StatusBadRequest)
 		return

@@ -2,15 +2,16 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
 
-	"github.com/basedalex/merch-shop/internal/api"
 	"github.com/basedalex/merch-shop/internal/config"
 	"github.com/basedalex/merch-shop/internal/db"
 	"github.com/basedalex/merch-shop/internal/middleware"
 	"github.com/basedalex/merch-shop/internal/service"
+	api "github.com/basedalex/merch-shop/internal/swagger"
 	"github.com/go-chi/chi/v5"
 	log "github.com/sirupsen/logrus"
 )
@@ -25,7 +26,8 @@ func main() {
 		log.Fatalln("error loading config:", err)
 	}
 
-	// todo: db retry
+	fmt.Println(cfg.Database.DSN)
+
 	database, err := db.NewPostgres(ctx, cfg.Database.DSN)
 	if err != nil {
 		log.Fatalln(err)
@@ -33,7 +35,7 @@ func main() {
 
 	server := service.NewService(database)
 	r := chi.NewRouter()
-	r.Use(middleware.IsAuth)
+	r.Use(middleware.Authentication)
 	api.HandlerFromMux(server, r)
 	
 

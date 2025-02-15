@@ -10,6 +10,8 @@ CREATE TABLE merch_shop (
 
 CREATE TABLE employees (
     id BIGSERIAL PRIMARY KEY,
+    username TEXT NOT NULL UNIQUE,
+    pass TEXT NOT NULL,
     balance INT NOT NULL DEFAULT 1000 CHECK (balance >= 0),
     created_at timestamp DEFAULT NOW(),
     updated_at timestamp DEFAULT NOW()
@@ -21,7 +23,7 @@ CREATE TABLE employee_merch (
     merch_id BIGINT NOT NULL REFERENCES merch_shop(id) ON DELETE CASCADE,
     quantity INT NOT NULL DEFAULT 1 CHECK (quantity > 0),
     purchased_at TIMESTAMP DEFAULT NOW()
-)
+);
 
 CREATE TABLE transactions (
     id BIGSERIAL PRIMARY KEY,
