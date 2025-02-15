@@ -6,7 +6,7 @@ database:
   user: "postgres"
   password: password
   host: "localhost"
-  port: 5435
+  port: 5433
   name: "merch-shop"
   dsn: user=postgres password=password host=localhost port=5433 dbname=merch-shop sslmode=disable pool_max_conns=10
 

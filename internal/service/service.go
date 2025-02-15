@@ -15,6 +15,16 @@ import (
 	api "github.com/basedalex/merch-shop/internal/swagger"
 )
 
+//go:generate mockgen -source=service.go -destination=mocks/mock_service.go -package=mocks
+
+type Service interface {
+    PostApiAuth(w http.ResponseWriter, r *http.Request)
+	GetApiBuyItem(w http.ResponseWriter, r *http.Request, item string)
+	GetApiInfo(w http.ResponseWriter, r *http.Request)
+	PostApiSendCoin(w http.ResponseWriter, r *http.Request)
+}
+
+
 type MyService struct {
 	db db.Repository
 }
@@ -39,7 +49,6 @@ func (s *MyService) PostApiAuth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-
 	// if user exists and password is right give back token
 	exists, err := s.db.Authenticate(r.Context(), authRequest); 
 	if err != nil {
@@ -50,6 +59,7 @@ func (s *MyService) PostApiAuth(w http.ResponseWriter, r *http.Request) {
 
 		return 
 	}
+
 	log.Info("exists", exists)
 	
 	if exists {
@@ -67,7 +77,6 @@ func (s *MyService) PostApiAuth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// if user doesn't exist create one
-
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(authRequest.Password), bcrypt.DefaultCost)
     if err != nil {
 		writeErrResponse(w, err, http.StatusInternalServerError)
@@ -75,7 +84,6 @@ func (s *MyService) PostApiAuth(w http.ResponseWriter, r *http.Request) {
 		return
     }
 	authRequest.Password = string(hashedPassword)
-	fmt.Println(authRequest.Password)
 
 	if err = s.db.CreateEmployee(r.Context(), authRequest); err != nil {
 		writeErrResponse(w, fmt.Errorf("could not create new employee %w", err), http.StatusInternalServerError)
@@ -96,24 +104,13 @@ func (s *MyService) PostApiAuth(w http.ResponseWriter, r *http.Request) {
 
 // (GET /api/buy/{item})
 func (s *MyService) GetApiBuyItem(w http.ResponseWriter, r *http.Request, item string) {
-	fmt.Println("buying item")
-	tokenString := r.Header.Get("Authorization")
-	token := strings.TrimPrefix(tokenString, "Bearer ")
-	username, err := auth.ExtractUsername(token)
+	username, err := getLoginFromToken(r.Header.Get("Authorization"))
 	if err != nil {
 		writeErrResponse(w, err, http.StatusBadRequest)
-	
-		return
+		return 
 	}
 
-	employeeID, err := s.db.GetEmployeeID(r.Context(), username)
-	if err != nil {
-		writeErrResponse(w, err, http.StatusInternalServerError)
-	
-		return
-	}
-
-	if err = s.db.BuyItem(r.Context(), employeeID, item); err != nil {
+	if err = s.db.BuyItem(r.Context(), username, item); err != nil {
 		writeErrResponse(w, err, http.StatusInternalServerError)
 	
 		return
@@ -121,27 +118,15 @@ func (s *MyService) GetApiBuyItem(w http.ResponseWriter, r *http.Request, item s
 	writeOkResponse(w, http.StatusOK, nil)
 }
 
-
-
 // (GET /api/info)
 func (s *MyService) GetApiInfo(w http.ResponseWriter, r *http.Request) {
-	tokenString := r.Header.Get("Authorization")
-	token := strings.TrimPrefix(tokenString, "Bearer ")
-
-	username, err := auth.ExtractUsername(token)
+	username, err := getLoginFromToken(r.Header.Get("Authorization"))
 	if err != nil {
 		writeErrResponse(w, err, http.StatusBadRequest)
-		return
-	}
-
-	employeeID, err := s.db.GetEmployeeID(r.Context(), username)
-	if err != nil {
-		writeErrResponse(w, err, http.StatusInternalServerError)
-	
-		return
+		return 
 	}
 	
-	infoResponse, err := s.db.GetEmployeeInfo(r.Context(), employeeID)
+	infoResponse, err := s.db.GetEmployeeInfo(r.Context(), username)
 	if err != nil {
 		writeErrResponse(w, err, http.StatusInternalServerError)
 	
@@ -171,31 +156,14 @@ func (s *MyService) PostApiSendCoin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tokenString := r.Header.Get("Authorization")
-	
-	token := strings.TrimPrefix(tokenString, "Bearer ")
-
-	
-	username, err := auth.ExtractUsername(token)
+	username, err := getLoginFromToken(r.Header.Get("Authorization"))
 	if err != nil {
 		writeErrResponse(w, err, http.StatusBadRequest)
-		return
+		return 
 	}
 
-	senderID, err := s.db.GetEmployeeID(r.Context(), username)
-	if err != nil {
-		writeErrResponse(w, err, http.StatusInternalServerError)
-	
-		return
-	}
-	recieverID, err := s.db.GetEmployeeID(r.Context(), sendCoinRequest.ToUser)
-	if err != nil {
-		writeErrResponse(w, err, http.StatusInternalServerError)
-	
-		return
-	}
 
-	err = s.db.TransferCoins(r.Context(), senderID, recieverID, sendCoinRequest.Amount)
+	err = s.db.TransferCoins(r.Context(), username, sendCoinRequest.ToUser, sendCoinRequest.Amount)
 	if err != nil {
 		writeErrResponse(w, err, http.StatusInternalServerError)
 	
@@ -213,6 +181,17 @@ func NewService(db db.Repository) *MyService {
 type HTTPResponse struct {
 	Data  any    `json:"data,omitempty"`
 	Error string `json:"error,omitempty"`
+}
+
+func getLoginFromToken(tokenString string) (string, error) {
+	token := strings.TrimPrefix(tokenString, "Bearer ")
+	
+	username, err := auth.ExtractUsername(token)
+	if err != nil {
+		return "", err
+	}
+
+	return username, nil
 }
 
 func writeOkResponse(w http.ResponseWriter, statusCode int, data any) {

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -25,8 +24,6 @@ func main() {
 	if err != nil {
 		log.Fatalln("error loading config:", err)
 	}
-
-	fmt.Println(cfg.Database.DSN)
 
 	database, err := db.NewPostgres(ctx, cfg.Database.DSN)
 	if err != nil {
