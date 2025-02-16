@@ -1,6 +1,6 @@
 module github.com/basedalex/merch-shop
 
-go 1.22.3
+go 1.23
 
 require (
 	github.com/getkin/kin-openapi v0.127.0

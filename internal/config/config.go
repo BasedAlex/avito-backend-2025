@@ -13,23 +13,14 @@ type Config struct {
 	} `yaml:"server"`
 
 	Database struct {
-		User     string `yaml:"user"`
-		Password string `yaml:"password"`
-		Host     string `yaml:"host"`
-		Port     int    `yaml:"port"`
-		Name     string `yaml:"name"`
-		DSN      string `yaml:"dsn"`
+		DSN        string `yaml:"dsn"`
+		Migrations string `yaml:"migrations"`
 	} `yaml:"database"`
 
 	Log struct {
 		Level  string `yaml:"level"`
 		Output string `yaml:"output"`
 	} `yaml:"log"`
-
-	// RateLimit struct {
-	// 	RequestsPerSecond int `yaml:"requests_per_second"`
-	// 	Burst            int `yaml:"burst"`
-	// } `yaml:"rate_limit"`
 }
 
 func Init(path string) (*Config, error) {

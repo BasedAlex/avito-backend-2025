@@ -61,8 +61,6 @@ func (s *MyService) PostApiAuth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Info("exists", exists)
-
 	if exists {
 		token, err := auth.CreateToken(authRequest.Username)
 

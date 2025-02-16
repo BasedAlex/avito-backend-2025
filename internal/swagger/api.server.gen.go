@@ -25,8 +25,6 @@ const (
 	BearerAuthScopes = "BearerAuth.Scopes"
 )
 
-
-
 // AuthRequest defines model for AuthRequest.
 type AuthRequest struct {
 	// Password Пароль для аутентификации.

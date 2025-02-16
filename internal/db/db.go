@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/basedalex/merch-shop/internal/config"
 	api "github.com/basedalex/merch-shop/internal/swagger"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -27,8 +28,8 @@ type Postgres struct {
 	db *pgxpool.Pool
 }
 
-func NewPostgres(ctx context.Context, conn string) (*Postgres, error) {
-	config, err := pgxpool.ParseConfig(conn)
+func NewPostgres(ctx context.Context, cfg *config.Config) (*Postgres, error) {
+	config, err := pgxpool.ParseConfig(cfg.Database.DSN)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing connection string: %w", err)
 	}
@@ -43,23 +44,21 @@ func NewPostgres(ctx context.Context, conn string) (*Postgres, error) {
 		return nil, fmt.Errorf("error pinging the database: %w", err)
 	}
 
-	if err := runMigrations(db); err != nil {
+	if err := runMigrations(db, cfg.Database.Migrations); err != nil {
 		return nil, fmt.Errorf("error running migrations: %w", err)
 	}
 
 	return &Postgres{db: db}, nil
 }
 
-func runMigrations(db *pgxpool.Pool) error {
+func runMigrations(db *pgxpool.Pool, path string) error {
 	sqlDB := stdlib.OpenDBFromPool(db)
 
 	if err := goose.SetDialect("postgres"); err != nil {
 		return fmt.Errorf("failed to set dialect: %w", err)
 	}
 
-	migrationsDir := "./migrations"
-
-	if err := goose.Up(sqlDB, migrationsDir); err != nil {
+	if err := goose.Up(sqlDB, path); err != nil {
 		return fmt.Errorf("failed to run migrations: %w", err)
 	}
 
@@ -96,7 +95,7 @@ func (p *Postgres) GetEmployeeInfo(ctx context.Context, employeeName string) (*I
 		return nil, fmt.Errorf("error fetching employee info: %w", err)
 	}
 
-	query = `SELECT sender, receiver, amount, transaction_date FROM transactions WHERE sender = $1 OR receiver = $1;`
+	query = `SELECT sender, receiver, amount, transaction_date FROM transactions WHERE receiver = $1;`
 
 	rows, err = p.db.Query(ctx, query, employeeName)
 	if err != nil {
@@ -113,6 +112,31 @@ func (p *Postgres) GetEmployeeInfo(ctx context.Context, employeeName string) (*I
 		}
 
 		info.CoinHistory.Received = append(info.CoinHistory.Received, Transaction{
+			FromUser:        sender,
+			ToUser:          receiver,
+			Amount:          amount,
+			TransactionDate: transactionDate,
+		})
+	}
+
+
+	query = `SELECT sender, receiver, amount, transaction_date FROM transactions WHERE sender = $1;`
+
+	rows, err = p.db.Query(ctx, query, employeeName)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching employee transactions: %w", err)
+	}
+	for rows.Next() {
+		var sender, receiver string
+		var amount int
+		var transactionDate time.Time
+
+		err := rows.Scan(&sender, &receiver, &amount, &transactionDate)
+		if err != nil {
+			return nil, fmt.Errorf("error fetching employee info: %w", err)
+		}
+
+		info.CoinHistory.Sent = append(info.CoinHistory.Sent, Transaction{
 			FromUser:        sender,
 			ToUser:          receiver,
 			Amount:          amount,

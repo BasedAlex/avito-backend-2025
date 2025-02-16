@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/basedalex/merch-shop/internal/config"
 	"github.com/basedalex/merch-shop/internal/db"
@@ -16,19 +18,18 @@ import (
 )
 
 func main() {
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
 	cfg, err := config.Init("./config.dev.yaml")
-
 	if err != nil {
-		log.Error("error loading config ", err)
+		log.Fatal("Error loading config: ", err)
 		return
 	}
 
-	database, err := db.NewPostgres(ctx, cfg.Database.DSN)
+	database, err := db.NewPostgres(ctx, cfg)
 	if err != nil {
-		log.Error(err)
+		log.Fatal("Error connecting to database: ", err)
 		return
 	}
 
@@ -37,10 +38,26 @@ func main() {
 	r.Use(middleware.Authentication)
 	api.HandlerFromMux(server, r)
 
-	log.Println("Server listening on port 8080")
-	err = http.ListenAndServe(":8080", r)
-	if err != nil {
-		log.Error(err)
-		return
+	srv := &http.Server{
+		Addr:    ":8080",
+		Handler: r,
 	}
+
+	go func() {
+		log.Println("Server listening on port 8080")
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatal("ListenAndServe Error: ", err)
+		}
+	}()
+
+	<-ctx.Done()
+
+	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancelShutdown()
+
+	log.Println("Shutting down server...")
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Fatal("Server Shutdown Error: ", err)
+	}
+	log.Println("Server gracefully stopped")
 }

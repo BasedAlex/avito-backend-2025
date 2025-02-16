@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/basedalex/merch-shop/internal/auth"
+	"github.com/basedalex/merch-shop/internal/config"
 	"github.com/basedalex/merch-shop/internal/db"
 	"github.com/basedalex/merch-shop/internal/service"
 	"github.com/go-playground/assert"
@@ -19,13 +20,25 @@ import (
 )
 
 var testDB *pgxpool.Pool
+var cfg *config.Config
+var connect = "postgres://postgres:password@host.docker.internal:5433/merch-shop?sslmode=disable"
 
 func TestMain(m *testing.M) {
-	dbURL := "postgres://postgres:password@localhost:5433/merch-shop?sslmode=disable"
+	var err error
+
+	cfg, _ = config.Init("../../config.dev.yaml")
+	cfg.Database.DSN = connect
+	cfg.Database.Migrations = "../migrations"
+
+	fmt.Println(cfg)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	pool, err := pgxpool.New(ctx, dbURL)
+	repo, _ := db.NewPostgres(ctx, cfg)
+	service.NewService(repo)
+
+	pool, err := pgxpool.New(ctx, connect)
 	if err != nil {
 		fmt.Println("Failed to connect to test database:", err)
 	}
@@ -36,7 +49,6 @@ func TestMain(m *testing.M) {
 	m.Run()
 
 	testDB.Close()
-	// os.Exit(code)
 }
 
 func resetTestDB(ctx context.Context) {
@@ -48,15 +60,15 @@ func resetTestDB(ctx context.Context) {
 func TestGetApiBuyItem(t *testing.T) {
 	ctx := context.Background()
 
-	_, err := testDB.Exec(ctx, "INSERT INTO merch_shop (product_name, price) VALUES ('t-shirt', 100)")
+	repo, err := db.NewPostgres(ctx, cfg)
+	require.NoError(t, err)
+	s := service.NewService(repo)
+
+	_, err = testDB.Exec(ctx, "INSERT INTO merch_shop (product_name, price) VALUES ('t-shirt', 100)")
 	require.NoError(t, err)
 
 	_, err = testDB.Exec(ctx, "INSERT INTO employees (username, pass, balance) VALUES ('testuser', 'hashedpass', 200)")
 	require.NoError(t, err)
-
-	repo, err := db.NewPostgres(ctx, "postgres://postgres:password@localhost:5433/merch-shop?sslmode=disable")
-	require.NoError(t, err)
-	s := service.NewService(repo)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/buy/t-shirt", nil)
 	token, err := auth.CreateToken("testuser")
@@ -90,7 +102,7 @@ func TestPostApiSendCoin(t *testing.T) {
 	_, err := testDB.Exec(ctx, `INSERT INTO employees (username, pass, balance) VALUES ('alice', 'hashedpass', 100), ('bob', 'hashedpass', 50)`)
 	require.NoError(t, err, "error seeding users")
 
-	repo, err := db.NewPostgres(ctx, "postgres://postgres:password@localhost:5433/merch-shop?sslmode=disable")
+	repo, err := db.NewPostgres(ctx, cfg)
 	require.NoError(t, err)
 	s := service.NewService(repo)
 
