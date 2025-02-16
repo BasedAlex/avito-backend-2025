@@ -10,6 +10,7 @@ build:
 up:
 	@docker compose up -d
 
+# Собрать Docker и запустить контейнеры
 run: build up
 
 # Остановить контейнеры
@@ -22,7 +23,7 @@ lint:
 
 # Запустить интеграционные тесты
 integration:
-	@go test -v ./internal/integration
+	@go test -v ./internal/tests
 
 # Запустить юнит тесты
 test:

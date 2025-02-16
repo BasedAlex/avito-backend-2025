@@ -1,4 +1,4 @@
-package integration
+package tests
 
 import (
 	"bytes"
@@ -21,7 +21,7 @@ import (
 
 var testDB *pgxpool.Pool
 var cfg *config.Config
-var connect = "postgres://postgres:password@host.docker.internal:5433/merch-shop?sslmode=disable"
+var connect = "postgres://postgres:password@localhost:5433/merch-shop?sslmode=disable"
 
 func TestMain(m *testing.M) {
 	var err error

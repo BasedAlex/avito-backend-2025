@@ -28,7 +28,7 @@ tasks:
   integration:
     desc: "Запустить интеграционные тесты"
     cmds:
-      - go test -v ./internal/integration
+      - go test -v ./internal/tests
 
   test:
     desc: "Запустить юнит тесты"
