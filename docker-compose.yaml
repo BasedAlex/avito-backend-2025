@@ -15,7 +15,8 @@ services:
       - DB_PASSWORD=password
       - DB_NAME=merch-shop
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - backend
 

@@ -106,7 +106,7 @@ func (s *MyService) PostApiAuth(w http.ResponseWriter, r *http.Request) {
 func (s *MyService) GetApiBuyItem(w http.ResponseWriter, r *http.Request, item string) {
 	username, err := getLoginFromToken(r.Header.Get("Authorization"))
 	if err != nil {
-		writeErrResponse(w, err, http.StatusBadRequest)
+		writeErrResponse(w, err, http.StatusUnauthorized)
 		return
 	}
 
@@ -123,7 +123,7 @@ func (s *MyService) GetApiBuyItem(w http.ResponseWriter, r *http.Request, item s
 func (s *MyService) GetApiInfo(w http.ResponseWriter, r *http.Request) {
 	username, err := getLoginFromToken(r.Header.Get("Authorization"))
 	if err != nil {
-		writeErrResponse(w, err, http.StatusBadRequest)
+		writeErrResponse(w, err, http.StatusUnauthorized)
 		return
 	}
 
@@ -159,7 +159,7 @@ func (s *MyService) PostApiSendCoin(w http.ResponseWriter, r *http.Request) {
 
 	username, err := getLoginFromToken(r.Header.Get("Authorization"))
 	if err != nil {
-		writeErrResponse(w, err, http.StatusBadRequest)
+		writeErrResponse(w, err, http.StatusUnauthorized)
 		return
 	}
 
@@ -170,7 +170,7 @@ func (s *MyService) PostApiSendCoin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeOkResponse(w, http.StatusAccepted, nil)
+	writeOkResponse(w, http.StatusOK, nil)
 }
 
 func NewService(db db.Repository) *MyService {
