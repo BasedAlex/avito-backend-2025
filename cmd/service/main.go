@@ -27,26 +27,12 @@ func main() {
 		return
 	}
 
-	maxAttempts := 10
-	delay := 1 * time.Second
-
-	var database *db.Postgres
-
-	for i := 0; i < maxAttempts; i++ {
-		database, err = db.NewPostgres(ctx, cfg)
-		if err == nil {
-			log.Info("connected to database")
-			break
-		}
-		log.Warnf("database not ready, attempt %d/%d: %v", i+1, maxAttempts, err)
-		time.Sleep(delay)
-		err = nil
-	}
-
+	database, err := db.NewPostgres(ctx, cfg)
 	if err != nil {
 		log.Fatal("Error connecting to database: ", err)
 		return
 	}
+	log.Info("connected to database")
 
 	server := service.NewService(database)
 	r := chi.NewRouter()
