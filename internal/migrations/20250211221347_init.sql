@@ -31,6 +31,36 @@ CREATE TABLE transactions (
     CHECK (sender <> receiver)
 );
 
+INSERT INTO merch_shop (product_name, price) 
+VALUES ('t-shirt', 80);
+
+INSERT INTO merch_shop (product_name, price) 
+VALUES ('cup', 20);
+
+INSERT INTO merch_shop (product_name, price) 
+VALUES ('book', 50);
+
+INSERT INTO merch_shop (product_name, price) 
+VALUES ('pen', 10);
+
+INSERT INTO merch_shop (product_name, price) 
+VALUES ('powerbank', 200);
+
+INSERT INTO merch_shop (product_name, price) 
+VALUES ('hoody', 300);
+
+INSERT INTO merch_shop (product_name, price) 
+VALUES ('umbrella', 200);
+
+INSERT INTO merch_shop (product_name, price) 
+VALUES ('socks', 10);
+
+INSERT INTO merch_shop (product_name, price) 
+VALUES ('wallet', 50);
+
+INSERT INTO merch_shop (product_name, price) 
+VALUES ('pink-hoody', 500);
+
 -- +goose StatementEnd
 
 -- +goose Down

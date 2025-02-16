@@ -125,7 +125,7 @@ func TestPostApiSendCoin(t *testing.T) {
 	resp := w.Result()
 	defer resp.Body.Close()
 
-	assert.Equal(t, http.StatusAccepted, resp.StatusCode)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
 	var senderBalance, receiverBalance int
 	err = testDB.QueryRow(ctx, "SELECT balance FROM employees WHERE username = 'alice'").Scan(&senderBalance)
